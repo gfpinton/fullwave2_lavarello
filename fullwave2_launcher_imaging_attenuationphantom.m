@@ -9,7 +9,7 @@ addpath /celerina/gfp/mfs/dumbmat/
 %%% Basic variables %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 c0 = 1540;         % speed of sound (m/s)
 rho0=1000;
-omega0 = 2*pi*1e6; % center radian frequency of transmitted wave
+omega0 = 2*pi*5.5e6; % center radian frequency of transmitted wave
 wX = 4e-2;         % width of simulation field (m)
 wY = 6e-2;         % depth of simulation field (m)
 duration = wY*2.5/c0;  % duration of simulation (s)
@@ -63,7 +63,7 @@ imagesc(icmat)
 outmap = zeros(nX,nY);  outmap(:,9) = ones(nX,1);
 outcoords = mapToCoords(outmap);
 %%% Generate field maps %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-nlines=11;
+nlines=128;
 beamwidth=round(ppw/2);
 nXextend=nX+(nlines-1)*beamwidth;
 cmap = ones(nXextend,nY)*1540;   % speed of sound map (m/s)
@@ -72,6 +72,7 @@ Amap = ones(nXextend,nY)*0.5;    % attenuation map (dB/MHz/cm)
 betamap = ones(nXextend,nY)*0.0;    % nonlinearity map 
 imagesc(cmap'), axis equal, axis tight
 rhos=rand(nXextend,nY); rhos(find(rhos>0.05))=0; rhos=rhos/0.05;
+rhos(:,1:10)=0;
 rhomap=rhomap-rhos*rho0*rhosr;
 imagesc((1:nX)*dX,(1:nY)*dY,rhomap'), axis equal, axis tight
 xlabel('m'), ylabel('m'), cbar=colorbar; title(cbar,'kg/m^3')
@@ -79,6 +80,8 @@ xlabel('m'), ylabel('m'), cbar=colorbar; title(cbar,'kg/m^3')
 imagesc((1:nX)*dX,(1:nY)*dY,Amap'), axis equal, axis tight
 xlabel('m'), ylabel('m'), cbar=colorbar; title(cbar,'dB/MHz/cm')
 %saveFig(gcf,'Amap1') 
+
+lld=0;
 
 for n=1:nlines
   idxvec=(1:nX)+(n-1)*beamwidth;
@@ -98,8 +101,24 @@ for n=1:nlines
 
   !nohup ./fullwave2_try6_nln_relaxing > output.txt &
   cd(cwd)
+
+   [tmp lld]=system('uptime | awk  ''{print $11}'''); lld=str2num(lld)
+   while(lld>30)
+    [tmp lld]=system('uptime | awk  ''{print $11}'''); lld=str2num(lld)
+    pause(60)
+  end
+  
 end
 %%% GENERATE IMAGE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ncoordsout=size(outcoords,1);
+pause(60)
+nRun=sizeOfFile([outdir 'genout.dat'])/4/ncoordsout;
+while(nRun<nT-10)
+  pause(60)
+  nRun=sizeOfFile([outdir 'genout.dat'])/4/ncoordsout;
+end
+  
+
 deps = 10e-3:lambda/20:nY*dY;
 lats = 0;
 fnumber=1;
@@ -129,12 +148,13 @@ for n=1:nlines
   outdir=[ basedir '/txrx' num2str(n) '/'];
   pxducer=readpx(outdir,nT,ncoordsout,idc);
   imagesc(powcompress(pxducer,1/4))
-  px=pxducer(:,round(size(pxducer,2)/2));
-  [val idt0]=max(abs(hilbert(px)))
-
+  if(n==1)
+    px=pxducer(:,round(size(pxducer,2)/2));
+    [val idt0]=max(abs(hilbert(px)))
+  end
   for ii=1:length(lats)
     for jj=1:length(deps)
-      bm(ii,jj,n)=sum(pxducer(idps{ii,jj}));
+      bm(ii,jj,n)=sum(round(pxducer(idps{ii,jj}+idt0)));
     end
   end
 end
@@ -149,11 +169,11 @@ axis equal, axis tight
 bm_ref=squeeze(bm);
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% NOW WITH ATTENUATION %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% NOW WITH ATTENUATION% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 [idx]=circleIdx([nXextend nY],[nXextend/2 fcen(2)],1.5e-2/dX/2);
 Amap(idx)=1;
-rhomap(idx)=(rhomap(idx)-rho0)/10+rho0;
+%rhomap(idx)=(rhomap(idx)-rho0)/10+rho0;
 
 for n=1:nlines
   idxvec=(1:nX)+(n-1)*beamwidth;
@@ -173,18 +193,34 @@ for n=1:nlines
 
   !nohup ./fullwave2_try6_nln_relaxing > output.txt &
   cd(cwd)
+
+  [tmp lld]=system('uptime | awk  ''{print $11}'''); lld=str2num(lld)
+   while(lld>30)
+    [tmp lld]=system('uptime | awk  ''{print $11}'''); lld=str2num(lld)
+    pause(60)
+  end
+  
 end
+
+pause(60)
+nRun=sizeOfFile([outdir 'genout.dat'])/4/ncoordsout;
+while(nRun<nT-10)
+  pause(60)
+  nRun=sizeOfFile([outdir 'genout.dat'])/4/ncoordsout;
+end
+ 
 
 for n=1:nlines
   outdir=[ basedir '/txrxA' num2str(n) '/'];
   pxducer=readpx(outdir,nT,ncoordsout,idc);
   imagesc(powcompress(pxducer,1/4))
-  px=pxducer(:,round(size(pxducer,2)/2));
-  [val idt0]=max(abs(hilbert(px)))
-
+  if(n==1)
+    px=pxducer(:,round(size(pxducer,2)/2));
+    [val idt0]=max(abs(hilbert(px)))
+  end
   for ii=1:length(lats)
     for jj=1:length(deps)
-      bm(ii,jj,n)=sum(pxducer(idps{ii,jj}));
+      bm(ii,jj,n)=sum(round(pxducer(idps{ii,jj}+idt0)));
     end
   end
 end
@@ -203,4 +239,76 @@ axis equal, axis tight
 
 bm_A=squeeze(bm);
 
-save imaging_attenuationphantom_rf bm_ref bm_A bws deps
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% NOW WITH ATTENUATION + REFLECTIVITY REDUCTION %%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+[idx]=circleIdx([nXextend nY],[nXextend/2 fcen(2)],1.5e-2/dX/2);
+Amap(idx)=1;
+rhomap(idx)=(rhomap(idx)-rho0)/10+rho0;
+
+for n=1:nlines
+  idxvec=(1:nX)+(n-1)*beamwidth;
+
+  c=cmap(idxvec,:);
+  rho=rhomap(idxvec,:);
+  A=Amap(idxvec,:);
+  beta=betamap(idxvec,:);
+
+%%% Launch %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+  outdir=[ basedir '/txrxAR' num2str(n) '/'];
+  eval(['!mkdir -p ' outdir]);
+  eval(['!cp fullwave2_try6_nln_relaxing ' outdir]);
+  cwd=pwd; addpath(cwd); cd(outdir)
+  
+  prep_fullwave2_try6_nln_relaxing4(c0,omega0,wX,wY,duration,p0,ppw,cfl,c,rho,A,beta,incoords,outcoords,icmat)
+
+  !nohup ./fullwave2_try6_nln_relaxing > output.txt &
+  cd(cwd)
+
+  [tmp lld]=system('uptime | awk  ''{print $11}'''); lld=str2num(lld)
+   while(lld>30)
+    [tmp lld]=system('uptime | awk  ''{print $11}'''); lld=str2num(lld)
+    pause(60)
+  end
+
+end
+
+pause(60)
+nRun=sizeOfFile([outdir 'genout.dat'])/4/ncoordsout;
+while(nRun<nT-10)
+  pause(60)
+  nRun=sizeOfFile([outdir 'genout.dat'])/4/ncoordsout;
+end
+ 
+
+for n=1:nlines
+  outdir=[ basedir '/txrxAR' num2str(n) '/'];
+  pxducer=readpx(outdir,nT,ncoordsout,idc);
+  imagesc(powcompress(pxducer,1/4))
+  if(n==1)
+    px=pxducer(:,round(size(pxducer,2)/2));
+    [val idt0]=max(abs(hilbert(px)))
+  end
+  for ii=1:length(lats)
+    for jj=1:length(deps)
+      bm(ii,jj,n)=sum(round(pxducer(idps{ii,jj}+idt0)));
+    end
+  end
+end
+%% PLOT THE BMODE IMAGE %%
+figure(1)
+n=1:nlines; bws=((n-(nlines+1)/2)*beamwidth)*dY;
+imagesc(bws*1e3,deps*1e3,dbzero(abs(hilbert(squeeze(bm)))),[-40 0])
+colormap gray
+xlabel('mm'), ylabel('mm')
+axis equal, axis tight
+
+
+imagesc(bws*1e3,deps*1e3,squeeze(bm))
+xlabel('mm'), ylabel('mm')
+axis equal, axis tight
+
+bm_AR=squeeze(bm);
+
+save imaging_attenuationphantom_rf bm_ref bm_A bm_AR bws deps lats
